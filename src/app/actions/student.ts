@@ -1,118 +1,144 @@
 'use server'
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/utils/supabase/server'
+import { revalidatePath } from 'next/cache'
 
 export interface CreateStudentPayload {
-  // Auth
-  username: string   // becomes the email: username@students.nexus.edu
-  password: string
-
-  // Basic Info
-  first_name: string
-  last_name: string
+  full_name: string
   roll_no: string
-  gender: string
   phone?: string
-  address?: string
-
-  // Academic Info
-  year_id: string
+  regulation_id: string
   group_id: string
   section_id: string
-
-  // Guardian Info
-  guardian_name: string
-  guardian_phone: string
+  parent_name: string
+  parent_mobile: string
+  // Optional login credentials
+  username?: string
+  password?: string
 }
 
 export interface CreateStudentResult {
   success: true
-  email: string
-  password: string
   studentId: string
+  email?: string
+  password?: string
 }
 
 export async function createStudent(data: CreateStudentPayload): Promise<CreateStudentResult> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-  if (!supabaseUrl || !serviceRoleKey || serviceRoleKey === 'your-service-role-key-here') {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is not configured. Go to Supabase Dashboard → Project Settings → API → service_role, then add it to your .env file.'
-    )
-  }
-
-  // Admin client — never touches browser session
   const supabaseAdmin = createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Build synthetic email from username
-  const sanitizedUsername = data.username.trim().toLowerCase().replace(/\s+/g, '.')
-  const email = sanitizedUsername.includes('@')
-    ? sanitizedUsername
-    : `${sanitizedUsername}@students.nexus.edu`
+  let authUserId: string | null = null
+  let generatedEmail: string | undefined
+  let usedPassword: string | undefined
 
-  // 1. Create auth user
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password: data.password,
-    email_confirm: true,
-    user_metadata: {
-      role: 'student',
-      roll_no: data.roll_no,
-      full_name: `${data.first_name} ${data.last_name}`,
-    },
-  })
+  // If credentials are provided, create an auth user
+  if (data.username && data.password) {
+    const sanitized = data.username.trim().toLowerCase().replace(/\s+/g, '.')
+    generatedEmail = sanitized.includes('@') ? sanitized : `${sanitized}@students.nexus.edu`
 
-  if (authError) {
-    if (authError.message.includes('already registered')) {
-      throw new Error(`Username "${data.username}" is already taken. Choose a different one.`)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: generatedEmail,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { role: 'student', roll_no: data.roll_no, full_name: data.full_name },
+    })
+
+    if (authError) {
+      if (authError.message.includes('already registered')) {
+        throw new Error(`Username "${data.username}" is already taken. Choose a different one.`)
+      }
+      throw new Error(`Auth error: ${authError.message}`)
     }
-    throw new Error(`Authentication error: ${authError.message}`)
+    authUserId = authData.user?.id ?? null
+    usedPassword = data.password
+
+    // Create profile with student role
+    if (authUserId) {
+      await supabaseAdmin.from('profiles').upsert({
+        id: authUserId,
+        role: 'student',
+        full_name: data.full_name,
+      })
+    }
   }
 
-  if (!authData.user) throw new Error('User was not created. Please try again.')
-
-  const authUserId = authData.user.id
-
-  // 2. Insert student profile — roll back auth user on failure
+  // Insert student record
   const { data: studentRow, error: insertError } = await supabaseAdmin
     .from('students')
     .insert({
-      auth_user_id: authUserId,
+      user_id: authUserId,
       roll_no: data.roll_no.trim(),
-      first_name: data.first_name.trim(),
-      last_name: data.last_name.trim(),
-      gender: data.gender,
+      full_name: data.full_name.trim(),
       phone: data.phone?.trim() || null,
-      address: data.address?.trim() || null,
-      year_id: data.year_id,
+      parent_name: data.parent_name.trim(),
+      parent_mobile: data.parent_mobile.trim(),
+      regulation_id: data.regulation_id,
       group_id: data.group_id,
       section_id: data.section_id,
-      guardian_name: data.guardian_name.trim(),
-      guardian_phone: data.guardian_phone.trim(),
     })
     .select('id')
     .single()
 
   if (insertError) {
-    // Rollback: delete the auth user we just created
-    await supabaseAdmin.auth.admin.deleteUser(authUserId)
-
+    // Rollback auth user if we created one
+    if (authUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserId)
+    }
     if (insertError.code === '23505') {
       throw new Error(`Roll Number "${data.roll_no}" is already registered.`)
     }
     if (insertError.code === '23503') {
-      throw new Error('Selected Year / Group / Section no longer exists. Please refresh and try again.')
+      throw new Error('Selected Course / Batch / Section no longer exists. Please refresh and try again.')
     }
     throw new Error(`Database error: ${insertError.message}`)
   }
 
+  revalidatePath('/admin/students')
+
   return {
     success: true,
-    email,
-    password: data.password,
     studentId: studentRow.id,
+    email: generatedEmail,
+    password: usedPassword,
   }
+}
+
+// ─── Auth Actions ────────────────────────────────────────────────────────────
+
+export async function signIn(email: string, password: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function signOut() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+}
+
+export async function getSession() {
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session
+}
+
+export async function getUserRole(): Promise<'admin' | 'student' | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  return (data?.role as 'admin' | 'student') ?? null
 }

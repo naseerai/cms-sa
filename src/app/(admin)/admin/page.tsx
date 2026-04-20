@@ -10,7 +10,7 @@ export default function AdminDashboard() {
         {[
           {
             label: 'Academic Setup',
-            desc: 'Define Years, Groups, and Sections.',
+            desc: 'Define Regulations, Groups, and Sections.',
             href: '/admin/setup',
             color: 'from-blue-500 to-indigo-600',
             icon: (

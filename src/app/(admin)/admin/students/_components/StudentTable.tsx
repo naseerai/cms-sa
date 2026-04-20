@@ -4,34 +4,43 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
 
 async function fetchStudentsWithNames(supabase: ReturnType<typeof createClient>) {
-  // Step 1: Fetch students with scalar columns only — always reliable
+  // Step 1: Fetch students with columns matching the actual DB schema
   const { data: students, error: studentsError } = await supabase
     .from('students')
-    .select('id, roll_no, first_name, last_name, gender, phone, guardian_name, guardian_phone, created_at, year_id, group_id, section_id')
+    .select('id, roll_no, full_name, phone, parent_name, parent_mobile, created_at, regulation_id, group_id, section_id')
     .order('created_at', { ascending: false })
 
   if (studentsError) throw studentsError
   if (!students || students.length === 0) return []
 
   // Step 2: Fetch lookup tables in parallel
-  const [{ data: years }, { data: groups }, { data: sections }] = await Promise.all([
-    supabase.from('years').select('id, name'),
+  const [{ data: regulations }, { data: groups }, { data: sections }] = await Promise.all([
+    supabase.from('regulations').select('id, name'),
     supabase.from('groups').select('id, name'),
     supabase.from('sections').select('id, name'),
   ])
 
   // Step 3: Build lookup maps
-  const yearMap = Object.fromEntries((years || []).map((y) => [y.id, y.name]))
+  const regulationMap = Object.fromEntries((regulations || []).map((r) => [r.id, r.name]))
   const groupMap = Object.fromEntries((groups || []).map((g) => [g.id, g.name]))
   const sectionMap = Object.fromEntries((sections || []).map((s) => [s.id, s.name]))
 
   // Step 4: Enrich student rows
   return students.map((s) => ({
     ...s,
-    year_name: yearMap[s.year_id] || '—',
+    regulation_name: regulationMap[(s as any).regulation_id] || '—',
     group_name: groupMap[s.group_id] || '—',
     section_name: sectionMap[s.section_id] || '—',
   }))
+}
+
+function getInitials(fullName: string) {
+  return fullName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('')
 }
 
 export default function StudentTable() {
@@ -71,7 +80,7 @@ export default function StudentTable() {
           </svg>
         </div>
         <h3 className="text-lg font-semibold text-slate-700">No Students Enrolled</h3>
-        <p className="text-slate-500 text-sm mt-1">Use the "Onboard Student" button above to register your first student.</p>
+        <p className="text-slate-500 text-sm mt-1">Use the &quot;Onboard Student&quot; button above to register your first student.</p>
       </div>
     )
   }
@@ -91,9 +100,8 @@ export default function StudentTable() {
             <tr className="border-b border-slate-100">
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Student</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Roll No</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Academic Placement</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Guardian</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Section / Batch</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Parent</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Enrolled On</th>
             </tr>
           </thead>
@@ -103,10 +111,10 @@ export default function StudentTable() {
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm">
-                      {student.first_name?.[0]?.toUpperCase()}{student.last_name?.[0]?.toUpperCase()}
+                      {getInitials(student.full_name || '')}
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-800">{student.first_name} {student.last_name}</p>
+                      <p className="font-semibold text-slate-800">{student.full_name}</p>
                       <p className="text-xs text-slate-400 mt-0.5">{student.phone || 'No phone'}</p>
                     </div>
                   </div>
@@ -117,21 +125,10 @@ export default function StudentTable() {
                   </span>
                 </td>
                 <td className="px-5 py-3.5">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    student.gender === 'Male'
-                      ? 'bg-blue-50 text-blue-700'
-                      : student.gender === 'Female'
-                      ? 'bg-pink-50 text-pink-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {student.gender || '—'}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5">
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                      <span className="text-xs text-slate-600 font-medium">{student.year_name}</span>
+                      <span className="text-xs text-slate-600 font-medium">{(student as any).regulation_name}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
@@ -144,8 +141,8 @@ export default function StudentTable() {
                   </div>
                 </td>
                 <td className="px-5 py-3.5">
-                  <p className="text-sm text-slate-700 font-medium">{student.guardian_name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{student.guardian_phone}</p>
+                  <p className="text-sm text-slate-700 font-medium">{student.parent_name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{student.parent_mobile}</p>
                 </td>
                 <td className="px-5 py-3.5 text-xs text-slate-400 whitespace-nowrap">
                   {new Date(student.created_at).toLocaleDateString('en-US', {

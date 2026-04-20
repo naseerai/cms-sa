@@ -1,4 +1,4 @@
-// File: C:\Users\shorty\OneDrive\Documents\Naseer-test\college-management-system\src\app\(admin)\admin\students\page.tsx
+// File: /Users/shaiknaseerali/Documents/sanjuanimations/gitlab-cms/src/app/(admin)/admin/students/page.tsx
 import * as entry from '../../../../../../src/app/(admin)/admin/students/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

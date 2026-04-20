@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/(admin)/admin/page": [
+    "/(admin)/admin/attendance/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/admin/page.js"
+      "static/chunks/app/(admin)/admin/attendance/page.js"
     ],
     "/(admin)/layout": [
       "static/chunks/webpack.js",
@@ -16,20 +16,30 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/(admin)/admin/setup/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/admin/setup/page.js"
+      "static/chunks/app/page.js"
+    ],
+    "/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/login/page.js"
+    ],
+    "/(admin)/admin/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/admin/page.js"
     ],
     "/(admin)/admin/students/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(admin)/admin/students/page.js"
     ],
-    "/(admin)/admin/students/create/page": [
+    "/(admin)/admin/setup/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/admin/students/create/page.js"
+      "static/chunks/app/(admin)/admin/setup/page.js"
     ]
   }
 }

@@ -1,14 +1,14 @@
 {
   "node": {
-    "21bb825f42c8e92ab07b285e91e315449ebffdbd": {
+    "3093152e5eb2629b4f194db0b2a149107974f63b": {
       "workers": {
-        "app/(admin)/admin/students/create/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5Cshorty%5C%5COneDrive%5C%5CDocuments%5C%5CNaseer-test%5C%5Ccollege-management-system%5C%5Csrc%5C%5Capp%5C%5Cactions%5C%5Cstudent.ts%22%2C%5B%22createStudent%22%5D%5D%5D&__client_imported__=true!"
+        "app/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fshaiknaseerali%2FDocuments%2Fsanjuanimations%2Fgitlab-cms%2Fsrc%2Futils%2Fsupabase%2Fserver.ts%22%2C%5B%22createClient%22%5D%5D%5D&__client_imported__=!"
       },
       "layer": {
-        "app/(admin)/admin/students/create/page": "action-browser"
+        "app/page": "rsc"
       }
     }
   },
   "edge": {},
-  "encryptionKey": "L/TcWTrMOcr6yguvGlLTkROXe4HxZMqNur0cZoMw8CE="
+  "encryptionKey": "4aSUofVKqRMx7dJHd+9SCZpFs5tU6PqNZ07hB95vr74="
 }

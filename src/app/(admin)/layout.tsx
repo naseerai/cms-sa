@@ -2,12 +2,9 @@ import AdminSidebar from '@/components/AdminSidebar'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="portal-shell">
       <AdminSidebar />
-      <main
-        className="flex-1 overflow-auto"
-        style={{ marginLeft: 'var(--sidebar-width, 260px)' }}
-      >
+      <main className="portal-main">
         {children}
       </main>
     </div>
