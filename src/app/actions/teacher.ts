@@ -166,7 +166,42 @@ export async function createTeacher(payload: CreateTeacherPayload): Promise<Crea
     password,
   }
 }
+export async function updateTeacher(
+  userId: string,
+  updates: {
+    full_name?: string
+    email?: string
+    password?: string
+  }
+): Promise<void> {
+  const supabase = adminClient()
 
+  // Update auth account
+  if (updates.email || updates.password) {
+    const { error: authError } = await supabase.auth.admin.updateUserById(userId, {
+      email: updates.email?.trim().toLowerCase(),
+      password: updates.password || undefined,
+    })
+
+    if (authError) throw new Error(authError.message)
+  }
+
+  // Update profile
+  if (updates.full_name || updates.email) {
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        full_name: updates.full_name,
+        email: updates.email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+
+    if (profileError) throw new Error(profileError.message)
+  }
+
+  revalidatePath('/admin/teachers')
+}
 /**
  * Permanently deletes a teacher: removes auth user + profile.
  */

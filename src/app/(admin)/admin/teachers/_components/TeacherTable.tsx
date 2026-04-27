@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import {
   createTeacher,
   deleteTeacher,
+  updateTeacher,
   type TeacherRecord,
   type CreateTeacherResult,
 } from '@/app/actions/teacher'
@@ -80,7 +81,13 @@ function CredentialsModal({ result, onClose }: { result: CreateTeacherResult; on
 
 // ─── Add Teacher Modal ────────────────────────────────────────────────────────
 
-function AddTeacherModal({ onClose, onCreated }: { onClose: () => void; onCreated: (t: TeacherRecord) => void }) {
+function AddTeacherModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (t: TeacherRecord) => void
+}) {
   const [fullName, setFullName] = useState('')
   const [prefix, setPrefix] = useState('')
   const [customPassword, setCustomPassword] = useState('')
@@ -91,20 +98,36 @@ function AddTeacherModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   function handleCreate() {
     if (!fullName.trim() || !prefix.trim()) {
-      toast({ title: 'All fields required', description: 'Please fill in Full Name and Email Prefix.', variant: 'error' })
+      toast({
+        title: 'All fields required',
+        description: 'Please fill in Full Name and Email Prefix.',
+        variant: 'error',
+      })
       return
     }
+
     startTransition(async () => {
       try {
         const result = await createTeacher({
-          full_name: fullName,
-          email_prefix: prefix,
-          password: customPassword || undefined,
+          full_name: fullName.trim(),
+          email_prefix: prefix.trim().toLowerCase(),
+          password: customPassword.trim() || undefined,
         })
+
         setCreatedResult(result)
-        onCreated({ id: result.id, full_name: result.full_name, email: result.email, created_at: result.created_at })
+
+        onCreated({
+          id: result.id,
+          full_name: result.full_name,
+          email: result.email,
+          created_at: result.created_at,
+        })
       } catch (err: any) {
-        toast({ title: 'Creation failed', description: err.message, variant: 'error' })
+        toast({
+          title: 'Creation failed',
+          description: err.message,
+          variant: 'error',
+        })
       }
     })
   }
@@ -116,12 +139,14 @@ function AddTeacherModal({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <>
       <Toaster toasts={toasts} dismiss={dismiss} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
         <div
           className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Modal header */}
           <div className="bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
@@ -131,85 +156,277 @@ function AddTeacherModal({ onClose, onCreated }: { onClose: () => void; onCreate
               </div>
               <div>
                 <h2 className="text-white font-bold text-sm">Add Teacher</h2>
-                <p className="text-teal-100 text-xs mt-0.5">Creates a new login account with teacher role</p>
+                <p className="text-teal-100 text-xs mt-0.5">
+                  Creates a new login account with teacher role
+                </p>
               </div>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            >
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          {/* Form */}
           <div className="px-6 py-6 space-y-5">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                Full Name <span className="text-red-500">*</span>
+              </label>
               <input
-                id="teacher-full-name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="e.g. Dr. Ahmed Khan"
-                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition"
+                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-lg"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Email Prefix <span className="text-red-500">*</span></label>
-              <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition">
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                Email Prefix <span className="text-red-500">*</span>
+              </label>
+
+              <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden">
                 <input
-                  id="teacher-email-prefix"
                   value={prefix}
                   onChange={(e) => setPrefix(e.target.value.replace(/\s+/g, '.'))}
                   placeholder="e.g. ahmed.khan"
-                  autoComplete="off"
-                  className="flex-1 text-sm px-3.5 py-2.5 bg-white text-slate-800 placeholder:text-slate-400 outline-none min-w-0"
+                  className="flex-1 text-sm px-3.5 py-2.5"
                 />
-                <span className="flex items-center px-3 bg-teal-50 text-teal-700 text-sm font-mono border-l border-slate-200 whitespace-nowrap select-none">
+                <span className="flex items-center px-3 bg-teal-50 text-teal-700 text-sm font-mono border-l border-slate-200">
                   {EMAIL_DOMAIN}
                 </span>
               </div>
+
               {prefix && (
                 <p className="text-xs text-slate-500 mt-1">
-                  Login email: <span className="font-mono font-medium">{prefix.toLowerCase()}{EMAIL_DOMAIN}</span>
+                  Login email:{' '}
+                  <span className="font-mono font-medium">
+                    {prefix.toLowerCase()}
+                    {EMAIL_DOMAIN}
+                  </span>
                 </p>
               )}
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">Password</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                Password
+              </label>
+
               <div className="relative">
                 <input
-                  id="teacher-password"
                   type={showPw ? 'text' : 'password'}
                   value={customPassword}
                   onChange={(e) => setCustomPassword(e.target.value)}
                   placeholder={`Default: ${DEFAULT_PASSWORD}`}
-                  className="w-full text-sm px-3.5 py-2.5 pr-10 border border-slate-200 rounded-lg bg-white text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition"
+                  className="w-full text-sm px-3.5 py-2.5 pr-10 border border-slate-200 rounded-lg"
                 />
-                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  {showPw
-                    ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                    : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  }
+
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {showPw ? '🙈' : '👁️'}
                 </button>
               </div>
-              <p className="text-xs text-slate-400 mt-1">Leave blank to use the default password above.</p>
+
+              <p className="text-xs text-slate-400 mt-1">
+                Leave blank to use the default password above.
+              </p>
             </div>
           </div>
 
-          {/* Footer */}
           <div className="px-6 pb-6 flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl transition">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 bg-white text-slate-700 text-sm font-semibold rounded-xl"
+            >
               Cancel
             </button>
+
             <button
-              id="add-teacher-submit"
               onClick={handleCreate}
               disabled={isPending}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-teal-500/25 transition disabled:opacity-60"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-sm font-bold rounded-xl"
             >
-              {isPending ? <><SpinIcon /> Creating…</> : (
-                <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>Create Teacher</>
+              {isPending ? (
+                <>
+                  <SpinIcon /> Creating…
+                </>
+              ) : (
+                <>Create Teacher</>
               )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+function EditTeacherModal({
+  teacher,
+  onClose,
+  onUpdated,
+}: {
+  teacher: TeacherRecord
+  onClose: () => void
+  onUpdated: (t: TeacherRecord) => void
+}) {
+  const [fullName, setFullName] = useState(teacher.full_name || '')
+  const [prefix, setPrefix] = useState(
+    teacher.email?.replace(EMAIL_DOMAIN, '') || ''
+  )
+  const [customPassword, setCustomPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const { toast, toasts, dismiss } = useToast()
+
+  function handleUpdate() {
+    if (!fullName.trim() || !prefix.trim()) {
+      toast({
+        title: 'All fields required',
+        description: 'Please fill in Full Name and Email Prefix.',
+        variant: 'error',
+      })
+      return
+    }
+
+    startTransition(async () => {
+      try {
+        const updatedEmail = `${prefix.trim().toLowerCase()}${EMAIL_DOMAIN}`
+
+        await updateTeacher(teacher.id, {
+          full_name: fullName.trim(),
+          email: updatedEmail,
+          password: customPassword.trim() || undefined,
+        })
+
+        onUpdated({
+          ...teacher,
+          full_name: fullName.trim(),
+          email: updatedEmail,
+        })
+
+        toast({
+          title: 'Teacher updated',
+          description: 'Teacher credentials updated successfully.',
+          variant: 'success',
+        })
+
+        onClose()
+      } catch (err: any) {
+        toast({
+          title: 'Update failed',
+          description: err.message,
+          variant: 'error',
+        })
+      }
+    })
+  }
+
+  return (
+    <>
+      <Toaster toasts={toasts} dismiss={dismiss} />
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-white font-bold text-sm">Edit Teacher</h2>
+              <p className="text-blue-100 text-xs mt-0.5">
+                Update teacher credentials and details
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="px-6 py-6 space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                Full Name
+              </label>
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                Email Prefix
+              </label>
+
+              <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                <input
+                  value={prefix}
+                  onChange={(e) =>
+                    setPrefix(e.target.value.replace(/\s+/g, '.'))
+                  }
+                  className="flex-1 text-sm px-3.5 py-2.5"
+                />
+                <span className="px-3 flex items-center bg-slate-50 text-sm font-mono">
+                  {EMAIL_DOMAIN}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                New Password
+              </label>
+
+              <div className="relative">
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  value={customPassword}
+                  onChange={(e) => setCustomPassword(e.target.value)}
+                  placeholder="Leave blank to keep current password"
+                  className="w-full text-sm px-3.5 py-2.5 pr-10 border border-slate-200 rounded-lg"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {showPw ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 pb-6 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-slate-200 rounded-xl"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleUpdate}
+              disabled={isPending}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold"
+            >
+              {isPending ? 'Updating…' : 'Update Teacher'}
             </button>
           </div>
         </div>
@@ -224,6 +441,7 @@ export default function TeacherTable({ initialTeachers }: { initialTeachers: Tea
   const [teachers, setTeachers] = useState<TeacherRecord[]>(initialTeachers)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingTeacher, setEditingTeacher] = useState<TeacherRecord | null>(null)
   const [isPending, startTransition] = useTransition()
   const { toast, toasts, dismiss } = useToast()
 
@@ -266,6 +484,18 @@ export default function TeacherTable({ initialTeachers }: { initialTeachers: Tea
           Add Teacher
         </button>
       </div>
+      {editingTeacher && (
+  <EditTeacherModal
+    teacher={editingTeacher}
+    onClose={() => setEditingTeacher(null)}
+    onUpdated={(updated) => {
+      setTeachers((prev) =>
+        prev.map((t) => (t.id === updated.id ? updated : t))
+      )
+      setEditingTeacher(null)
+    }}
+  />
+)}
 
       {teachers.length === 0 ? (
         <div className="bg-white/60 backdrop-blur-xl border border-white/50 rounded-2xl shadow-xl p-14 text-center">
@@ -310,19 +540,33 @@ export default function TeacherTable({ initialTeachers }: { initialTeachers: Tea
                         {new Date(t.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <button
-                          onClick={() => handleDelete(t)}
-                          disabled={isDeleting || isPending}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all disabled:opacity-50"
-                        >
-                          {isDeleting ? <SpinIcon size={3} /> : (
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          )}
-                          Delete
-                        </button>
-                      </td>
+  <button
+    onClick={() => setEditingTeacher(t)}
+    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-500 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg mr-2"
+  >
+    Edit
+  </button>
+
+  <button
+    onClick={() => handleDelete(t)}
+    disabled={isDeleting || isPending}
+    className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all disabled:opacity-50"
+  >
+    {isDeleting ? (
+      <SpinIcon size={3} />
+    ) : (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+        />
+      </svg>
+    )}
+    Delete
+  </button>
+</td>
                     </tr>
                   )
                 })}

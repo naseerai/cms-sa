@@ -1,210 +1,306 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createClient as createServerClient } from '@/utils/supabase/server'
+import {
+  GraduationCap, BookOpen, Users, LayoutGrid,
+  CalendarCheck, CalendarX, CalendarDays, CheckCircle2,
+  Bell, LogOut, UserCircle, ChevronRight, Hash, Phone, User2,
+} from 'lucide-react'
+import { AttendanceRing, NoticeBoard } from './_components/DashboardWidgets'
 
-function InfoCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+// ── Types ──────────────────────────────────────────────────────────────────────
+interface AttendanceRecord { id: string; date: string; status: 'present' | 'absent' | 'holiday' | 'undefined' }
+interface Notice           { id: string; title: string; content: string; created_at: string }
+
+// ── Tiny reusable server components ──────────────────────────────────────────
+
+function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-start gap-4">
-      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
-        <p className="text-sm font-semibold text-slate-800 truncate">{value || '—'}</p>
-      </div>
+    <div className={`bg-white/75 backdrop-blur-md rounded-2xl border border-white/60 shadow-sm ${className}`}>
+      {children}
     </div>
   )
 }
 
-interface Notice {
-  id: string
-  title: string
-  content: string
-  created_at: string
+function SectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      <div className="text-indigo-500">{icon}</div>
+      <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">{label}</h2>
+    </div>
+  )
 }
 
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    present:   'bg-emerald-100 text-emerald-700 border-emerald-200',
+    absent:    'bg-red-100 text-red-600 border-red-200',
+    holiday:   'bg-amber-100 text-amber-700 border-amber-200',
+    undefined: 'bg-slate-100 text-slate-500 border-slate-200',
+  }
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold capitalize border ${map[status] ?? map.undefined}`}>
+      {status}
+    </span>
+  )
+}
+
+// ── Sign-out server action ────────────────────────────────────────────────────
+async function doSignOut() {
+  'use server'
+  const supabase = await createServerClient()
+  await supabase.auth.signOut()
+  redirect('/login')
+}
+
+function SignOutButton() {
+  return (
+    <form action={doSignOut}>
+      <button
+        type="submit"
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/60 hover:bg-white/90 border border-white/50 text-slate-600 hover:text-red-500 text-sm font-semibold transition-all shadow-sm"
+      >
+        <LogOut className="w-4 h-4" />
+        Sign Out
+      </button>
+    </form>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
+
 export default async function StudentDashboard() {
-  const supabase = await createClient()
+  const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch student record with related names
-  const { data: student, error } = await supabase
-    .from('students')
-    .select(`
-      id,
-      full_name,
-      roll_no,
-      phone,
-      parent_name,
-      parent_mobile,
-      current_year_level,
-      created_at,
-      regulations:regulation_id ( name ),
-      groups:group_id ( name ),
-      sections:section_id ( name )
-    `)
-    .eq('user_id', user.id)
-    .single()
+  // Parallel data fetch
+  const [studentRes, noticesRes] = await Promise.all([
+    supabase
+      .from('students')
+      .select(`
+        id, full_name, roll_no, phone, parent_name, parent_mobile, current_year_level, created_at,
+        regulations:regulation_id ( name ),
+        groups:group_id ( name ),
+        sections:section_id ( name )
+      `)
+      .eq('user_id', user.id)
+      .single(),
+    supabase
+      .from('notices')
+      .select('id, title, content, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ])
 
-  // Fetch latest notices regardless of student profile status
-  const { data: notices = [] } = await supabase
-    .from('notices')
-    .select('id, title, content, created_at')
-    .order('created_at', { ascending: false })
-    .limit(5)
+  const student = studentRes.data
+  const notices = (noticesRes.data ?? []) as Notice[]
 
-  if (error || !student) {
-    const isRlsError = error?.code === 'PGRST301' || error?.message?.toLowerCase().includes('permission')
+  // ── Profile not linked state ───────────────────────────────────────────────
+  if (!student || studentRes.error) {
+    const isRls = studentRes.error?.code === 'PGRST301'
     return (
-      <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-6">
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-6 text-sm">
-          <p className="font-bold mb-1">Profile not linked</p>
-          {isRlsError ? (
-            <p>Your account does not have permission to read student records. Please ask your administrator to check the Row-Level Security policy on the <code className="bg-amber-100 px-1 rounded">students</code> table.</p>
-          ) : (
-            <p>Your student profile has not been linked to this account yet. Please contact your administrator and ask them to set your <code className="bg-amber-100 px-1 rounded">user_id</code> in the students table (your UID is <code className="bg-amber-100 px-1 rounded">{user.id}</code>).</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-100 p-6 lg:p-10">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-7 space-y-4 text-sm shadow-md">
+            <div className="flex items-center gap-3 text-amber-800 font-bold text-base">
+              <Bell className="w-5 h-5 text-amber-500" />
+              Profile Not Linked
+            </div>
+            {isRls ? (
+              <p className="text-amber-700">Your account lacks permission to read student records. Ask your admin to fix the RLS policy on the <code className="bg-amber-100 px-1 rounded">students</code> table.</p>
+            ) : (
+              <div className="space-y-3 text-amber-800">
+                <p>Your student profile is not linked to this login. Your Auth UID is:</p>
+                <code className="block bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs font-mono break-all">{user.id}</code>
+                <p className="font-semibold">Ask your admin to run this in Supabase SQL Editor:</p>
+                <pre className="bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs font-mono whitespace-pre-wrap">{`UPDATE public.students\nSET user_id = '${user.id}'\nWHERE roll_no = 'YOUR_ROLL_NO_HERE';`}</pre>
+              </div>
+            )}
+          </div>
+          {notices.length > 0 && (
+            <div className="mt-6">
+              <SectionHeading icon={<Bell className="w-4 h-4" />} label="Notice Board" />
+              <NoticeBoard notices={notices} />
+            </div>
           )}
         </div>
-
-        {/* Still show notices even if profile not linked */}
-        {(notices as Notice[]).length > 0 && <NoticesFeed notices={notices as Notice[]} />}
       </div>
     )
   }
 
-  const regulationName = (student.regulations as any)?.name ?? '—'
-  const groupName = (student.groups as any)?.name ?? '—'
-  const sectionName = (student.sections as any)?.name ?? '—'
+  // ── Attendance ─────────────────────────────────────────────────────────────
+  const { data: allAtt = [] } = await supabase
+    .from('attendance')
+    .select('id, date, status')
+    .eq('student_id', student.id)
+    .order('date', { ascending: false })
 
-  const initials = student.full_name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w: string) => w[0]?.toUpperCase() ?? '')
-    .join('')
+  const att      = (allAtt ?? []) as AttendanceRecord[]
+  const total    = att.length
+  const present  = att.filter(r => r.status === 'present').length
+  const absent   = att.filter(r => r.status === 'absent').length
+  const holiday  = att.filter(r => r.status === 'holiday').length
+  const pct      = total > 0 ? Math.round((present / total) * 100) : 0
+  const recent   = att.slice(0, 10)
 
-  const enrolledDate = new Date(student.created_at).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  })
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const regulation = (student.regulations as any)?.name ?? '—'
+  const group      = (student.groups as any)?.name ?? '—'
+  const section    = (student.sections as any)?.name ?? '—'
+  const initials   = student.full_name.split(' ').filter(Boolean).slice(0, 2)
+    .map((w: string) => w[0]?.toUpperCase()).join('')
+
+  const placements = [
+    { label: 'Regulation', value: regulation, icon: <BookOpen className="w-5 h-5" />, from: 'from-blue-500', to: 'to-blue-600', shadow: 'shadow-blue-500/20' },
+    { label: 'Group / Batch', value: group,   icon: <Users className="w-5 h-5" />,    from: 'from-indigo-500', to: 'to-indigo-600', shadow: 'shadow-indigo-500/20' },
+    { label: 'Section',      value: section,  icon: <LayoutGrid className="w-5 h-5" />, from: 'from-violet-500', to: 'to-violet-600', shadow: 'shadow-violet-500/20' },
+  ]
+
+  const statPills = [
+    { label: 'Total Classes', value: total,   icon: <CalendarDays  className="w-4 h-4" />, cls: 'bg-slate-100 text-slate-700' },
+    { label: 'Present',       value: present, icon: <CalendarCheck  className="w-4 h-4" />, cls: 'bg-emerald-100 text-emerald-700' },
+    { label: 'Absent',        value: absent,  icon: <CalendarX      className="w-4 h-4" />, cls: 'bg-red-100 text-red-600' },
+    { label: 'Holiday',       value: holiday, icon: <CheckCircle2   className="w-4 h-4" />, cls: 'bg-amber-100 text-amber-700' },
+  ]
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl mx-auto">
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 rounded-3xl p-8 mb-8 shadow-lg shadow-indigo-500/20 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-white rounded-full" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white rounded-full" />
-        </div>
-        <div className="relative flex items-center gap-6">
-          <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white text-2xl font-bold shadow-xl shrink-0">
-            {initials}
-          </div>
-          <div>
-            <p className="text-blue-200 text-sm font-medium mb-1">Welcome back</p>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">{student.full_name}</h1>
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/20">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                </svg>
-                Roll No: {student.roll_no}
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/20">
-                Year Level: {student.current_year_level ?? 1}
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/20">
-                Enrolled {enrolledDate}
-              </span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-indigo-50/60 to-slate-100">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-7">
+
+        {/* ── Header ──────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            {/* Avatar */}
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-lg font-extrabold shadow-lg shadow-indigo-500/25 shrink-0">
+              {initials}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Academic Placement */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Academic Placement</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-md shadow-blue-500/20">
-            <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-1">Regulation</p>
-            <p className="text-xl font-bold">{regulationName}</p>
-          </div>
-          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-5 text-white shadow-md shadow-indigo-500/20">
-            <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Batch / Group</p>
-            <p className="text-xl font-bold">{groupName}</p>
-          </div>
-          <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl p-5 text-white shadow-md shadow-violet-500/20">
-            <p className="text-violet-200 text-xs font-semibold uppercase tracking-wider mb-1">Section</p>
-            <p className="text-xl font-bold">{sectionName}</p>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-md shadow-emerald-500/20">
-            <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider mb-1">Year Level</p>
-            <p className="text-xl font-bold">Year {student.current_year_level ?? 1}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Personal Details */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Personal Details</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <InfoCard label="Full Name" value={student.full_name} icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          } />
-          <InfoCard label="Phone" value={student.phone || 'Not provided'} icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-          } />
-          <InfoCard label="Parent / Guardian" value={student.parent_name} icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          } />
-          <InfoCard label="Parent Mobile" value={student.parent_mobile} icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-          } />
-          <InfoCard label="Email" value={user.email ?? '—'} icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          } />
-        </div>
-      </div>
-
-      {/* Latest Notices */}
-      {(notices as Notice[]).length > 0 && <NoticesFeed notices={notices as Notice[]} />}
-    </div>
-  )
-}
-
-function NoticesFeed({ notices }: { notices: Notice[] }) {
-  return (
-    <div>
-      <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-        <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-        Latest Notices
-      </h2>
-      <div className="space-y-3">
-        {notices.map((n) => (
-          <div key={n.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-amber-400 mt-2 shrink-0" />
-              <div>
-                <p className="font-bold text-slate-800 text-sm">{n.title}</p>
-                <p className="text-slate-500 text-sm mt-1 leading-relaxed whitespace-pre-wrap">{n.content}</p>
-                <p className="text-xs text-slate-400 mt-2">
-                  {new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
+            <div>
+              <p className="text-xs text-indigo-500 font-semibold uppercase tracking-widest mb-0.5">Student Portal</p>
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                Welcome back, {student.full_name.split(' ')[0]}!
+              </h1>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-full">
+                  <Hash className="w-3 h-3" /> {student.roll_no}
+                </span>
+                <span className="text-slate-300 text-xs">•</span>
+                <span className="text-xs text-slate-500 font-medium">{regulation} › {group} › {section}</span>
               </div>
             </div>
           </div>
-        ))}
+          <SignOutButton />
+        </div>
+
+        {/* ── Main Grid ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Left col: Attendance + History */}
+          <div className="lg:col-span-2 space-y-6">
+
+            {/* ── Attendance Power Widget ──────────────────────────── */}
+            <GlassCard className="p-6">
+              <SectionHeading icon={<CalendarCheck className="w-4 h-4" />} label="Attendance Health" />
+
+              {total === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <CalendarDays className="w-10 h-10 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No attendance records yet.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center gap-8">
+                  {/* Ring — client component */}
+                  <AttendanceRing pct={pct} />
+
+                  {/* Stat pills */}
+                  <div className="flex-1 w-full grid grid-cols-2 gap-3">
+                    {statPills.map(({ label, value, icon, cls }) => (
+                      <div key={label} className={`flex items-center gap-3 rounded-xl px-4 py-3.5 ${cls}`}>
+                        <div className="opacity-70">{icon}</div>
+                        <div>
+                          <p className="text-xl font-extrabold leading-none">{value}</p>
+                          <p className="text-[11px] font-semibold opacity-70 mt-0.5">{label}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </GlassCard>
+
+            {/* ── Academic Placement ───────────────────────────────── */}
+            <div>
+              <SectionHeading icon={<GraduationCap className="w-4 h-4" />} label="Academic Placement" />
+              <div className="grid grid-cols-3 gap-4">
+                {placements.map(({ label, value, icon, from, to, shadow }) => (
+                  <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-2xl p-5 text-white shadow-md ${shadow}`}>
+                    <div className="opacity-70 mb-2">{icon}</div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">{label}</p>
+                    <p className="text-base font-extrabold leading-tight">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Attendance History Table ─────────────────────────── */}
+            {recent.length > 0 && (
+              <GlassCard className="overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <CalendarDays className="w-4 h-4 text-indigo-400" />
+                    Attendance History
+                  </div>
+                  <span className="text-xs text-slate-400">Last {recent.length} records</span>
+                </div>
+                <div className="divide-y divide-slate-50/80">
+                  {recent.map((r, i) => (
+                    <div key={r.id} className="flex items-center gap-4 px-6 py-3 hover:bg-white/50 transition-colors">
+                      <span className="text-xs text-slate-300 font-mono w-5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="flex-1 text-sm font-semibold text-slate-700">
+                        {new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      <StatusBadge status={r.status} />
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
+          </div>
+
+          {/* Right col: Profile + Notices */}
+          <div className="space-y-6">
+
+            {/* ── Profile Card ─────────────────────────────────────── */}
+            <GlassCard className="p-6">
+              <SectionHeading icon={<UserCircle className="w-4 h-4" />} label="My Profile" />
+              <div className="space-y-3">
+                {[
+                  { icon: <User2 className="w-4 h-4" />,  label: 'Full Name',  val: student.full_name },
+                  { icon: <Hash className="w-4 h-4" />,   label: 'Roll No',    val: student.roll_no },
+                  { icon: <Phone className="w-4 h-4" />,  label: 'Phone',      val: student.phone || 'Not provided' },
+                  { icon: <User2 className="w-4 h-4" />,  label: 'Parent',     val: student.parent_name },
+                  { icon: <Phone className="w-4 h-4" />,  label: 'Parent Mobile', val: student.parent_mobile },
+                ].map(({ icon, label, val }) => (
+                  <div key={label} className="flex items-start gap-3 p-3 bg-slate-50/70 rounded-xl">
+                    <div className="text-indigo-400 mt-0.5 shrink-0">{icon}</div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</p>
+                      <p className="text-sm font-semibold text-slate-700 truncate">{val}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+
+            {/* ── Notice Board ─────────────────────────────────────── */}
+            {notices.length > 0 && (
+              <div id="notices"><GlassCard className="p-6">
+                <SectionHeading icon={<Bell className="w-4 h-4" />} label="Notice Board" />
+                <NoticeBoard notices={notices} />
+              </GlassCard></div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   )
