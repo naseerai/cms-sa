@@ -12,6 +12,8 @@ import Toaster from '@/components/ui/Toaster'
 
 // ─── Schema (aligned with DB schema) ─────────────────────────────────────────
 
+const EMAIL_DOMAIN = '@nexuscollege.com'
+
 const schema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
   roll_no: z.string().min(1, 'Roll number is required'),
@@ -24,7 +26,7 @@ const schema = z.object({
   parent_name: z.string().min(2, 'Parent name is required'),
   parent_mobile: z.string().min(7, 'Valid parent mobile is required'),
 
-  // Optional login credentials
+  // Optional login credentials — username is just the prefix (before @)
   username: z.string().optional(),
   password: z.string().optional(),
 })
@@ -286,6 +288,11 @@ export default function StudentForm() {
   async function onSubmit(data: FormValues) {
     setSubmitting(true)
     try {
+      // Combine prefix with fixed domain to form the full email
+      const fullUsername = data.username
+        ? `${data.username.trim().toLowerCase()}${EMAIL_DOMAIN}`
+        : undefined
+
       const result = await createStudent({
         full_name: data.full_name,
         roll_no: data.roll_no,
@@ -295,7 +302,7 @@ export default function StudentForm() {
         section_id: data.section_id,
         parent_name: data.parent_name,
         parent_mobile: data.parent_mobile,
-        username: data.username || undefined,
+        username: fullUsername,
         password: data.password || undefined,
       })
 
@@ -526,18 +533,21 @@ export default function StudentForm() {
               <div className="px-6 pb-6 border-t border-slate-100 pt-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <Label>Username</Label>
-                    <div className="relative">
+                    <Label>Email Prefix</Label>
+                    {/* Split input: user types prefix, domain is fixed */}
+                    <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition">
                       <input
                         {...register('username')}
-                        placeholder="e.g. ali.khan or CS2026001"
-                        className={inputCls}
+                        id="student-email-prefix"
+                        placeholder="e.g. ali.khan"
+                        autoComplete="off"
+                        className="flex-1 text-sm px-3.5 py-2.5 bg-white text-slate-800 placeholder:text-slate-400 outline-none min-w-0"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono hidden sm:inline">
-                        @students.nexus.edu
+                      <span className="flex items-center px-3 bg-slate-100 text-slate-500 text-sm font-mono border-l border-slate-200 whitespace-nowrap select-none">
+                        {EMAIL_DOMAIN}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Letters, numbers, dots and underscores only.</p>
+                    <p className="text-xs text-slate-400 mt-1">Letters, numbers, dots and underscores only. The domain is fixed.</p>
                   </div>
                   <div>
                     <Label>Password</Label>

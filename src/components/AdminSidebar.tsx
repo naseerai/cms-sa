@@ -5,7 +5,16 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { useState } from 'react'
 
-const navItems = [
+// ── Nav Items ─────────────────────────────────────────────────────────────────
+
+interface NavItem {
+  label: string
+  href: string
+  adminOnly?: boolean   // if true, hidden from teachers
+  icon: React.ReactNode
+}
+
+const NAV_ITEMS: NavItem[] = [
   {
     label: 'Dashboard',
     href: '/admin',
@@ -18,6 +27,7 @@ const navItems = [
   {
     label: 'Academic Setup',
     href: '/admin/setup',
+    adminOnly: true,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -27,9 +37,20 @@ const navItems = [
   {
     label: 'Student Management',
     href: '/admin/students',
+    adminOnly: true,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Teacher Management',
+    href: '/admin/teachers',
+    adminOnly: true,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
   },
@@ -42,9 +63,38 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: 'Attendance Report',
+    href: '/admin/reports/attendance',
+    adminOnly: true,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Notice Board',
+    href: '/admin/notices',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    ),
+  },
 ]
 
-export default function AdminSidebar() {
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function AdminSidebar({
+  role = 'admin',
+  userEmail = '',
+  userName = '',
+}: {
+  role?: string
+  userEmail?: string
+  userName?: string
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -55,6 +105,13 @@ export default function AdminSidebar() {
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  const isTeacher = role === 'teacher'
+  const visibleItems = NAV_ITEMS.filter((item) => !(isTeacher && item.adminOnly))
+
+  const displayName = userName || userEmail || (isTeacher ? 'Teacher' : 'Admin')
+  const initials = displayName.slice(0, 2).toUpperCase()
+  const avatarGradient = isTeacher ? 'from-teal-400 to-emerald-500' : 'from-emerald-400 to-teal-500'
 
   return (
     <aside
@@ -71,7 +128,7 @@ export default function AdminSidebar() {
           </div>
           <div>
             <p className="font-bold text-sm text-white leading-tight">NexusCollege</p>
-            <p className="text-xs text-slate-400 leading-tight">Admin Panel</p>
+            <p className="text-xs text-slate-400 leading-tight capitalize">{isTeacher ? 'Teacher Portal' : 'Admin Panel'}</p>
           </div>
         </div>
       </div>
@@ -79,7 +136,7 @@ export default function AdminSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
         <p className="px-3 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Main Menu</p>
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const isActive =
             item.href === '/admin'
               ? pathname === '/admin'
@@ -110,12 +167,12 @@ export default function AdminSidebar() {
       {/* Footer */}
       <div className="px-4 py-4 border-t border-slate-700/60 space-y-3">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
-            A
+          <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-xs font-bold text-white shrink-0`}>
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">Admin</p>
-            <p className="text-xs text-slate-500 truncate">System Administrator</p>
+            <p className="text-sm font-medium text-white truncate">{displayName}</p>
+            <p className="text-xs text-slate-500 truncate capitalize">{isTeacher ? 'Teacher' : 'System Administrator'}</p>
           </div>
         </div>
         <button

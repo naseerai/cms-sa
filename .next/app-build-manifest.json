@@ -1,14 +1,14 @@
 {
   "pages": {
-    "/(admin)/admin/attendance/page": [
+    "/student/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/admin/attendance/page.js"
+      "static/chunks/app/student/dashboard/page.js"
     ],
-    "/(admin)/layout": [
+    "/student/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/layout.js"
+      "static/chunks/app/student/layout.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -16,30 +16,55 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/page": [
+    "/(admin)/admin/notices/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/(admin)/admin/notices/page.js"
     ],
-    "/login/page": [
+    "/(admin)/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/login/page.js"
+      "static/chunks/app/(admin)/layout.js"
+    ],
+    "/(admin)/admin/teachers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/admin/teachers/page.js"
     ],
     "/(admin)/admin/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(admin)/admin/page.js"
     ],
+    "/(admin)/admin/setup/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/admin/setup/page.js"
+    ],
     "/(admin)/admin/students/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(admin)/admin/students/page.js"
     ],
-    "/(admin)/admin/setup/page": [
+    "/(admin)/admin/students/create/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/admin/setup/page.js"
+      "static/chunks/app/(admin)/admin/students/create/page.js"
+    ],
+    "/(admin)/admin/attendance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/admin/attendance/page.js"
+    ],
+    "/(admin)/admin/reports/attendance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/admin/reports/attendance/page.js"
+    ],
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
     ]
   }
 }

@@ -156,6 +156,8 @@ export default function AttendanceManager() {
   const [attendanceDate, setAttendanceDate] = useState(
     () => new Date().toISOString().slice(0, 10)
   )
+  // loadTriggered: students only load when the button is clicked
+  const [loadTriggered, setLoadTriggered] = useState(false)
 
   // ── Attendance map: student_id → status ──────────────────────────────────
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
@@ -169,6 +171,7 @@ export default function AttendanceManager() {
     setSectionId('')
     setAttendance({})
     setIsDirty(false)
+    setLoadTriggered(false)
   }
 
   function handleGroupChange(id: string) {
@@ -176,12 +179,21 @@ export default function AttendanceManager() {
     setSectionId('')
     setAttendance({})
     setIsDirty(false)
+    setLoadTriggered(false)
   }
 
   function handleSectionChange(id: string) {
     setSectionId(id)
     setAttendance({})
     setIsDirty(false)
+    setLoadTriggered(false)
+  }
+
+  function handleDateChange(val: string) {
+    setAttendanceDate(val)
+    setAttendance({})
+    setIsDirty(false)
+    setLoadTriggered(false)
   }
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
@@ -223,10 +235,10 @@ export default function AttendanceManager() {
     },
   })
 
-  // students for selected section — load as soon as section + date are chosen
+  // students — only load when loadTriggered
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['students-section', sectionId],
-    enabled: !!sectionId,
+    enabled: !!sectionId && loadTriggered,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('students')
@@ -238,17 +250,31 @@ export default function AttendanceManager() {
     },
   })
 
-  // seed attendance map with 'undefined' for newly-loaded students
+  // fetch existing attendance records for sectionId + date
+  const { data: existingRecords = [] } = useQuery({
+    queryKey: ['attendance-existing', sectionId, attendanceDate],
+    enabled: !!sectionId && loadTriggered,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('student_id, status')
+        .eq('section_id', sectionId)
+        .eq('date', attendanceDate)
+      if (error) throw error
+      return data as { student_id: string; status: AttendanceStatus }[]
+    },
+  })
+
+  // seed attendance map: existing DB records take priority, rest default to 'undefined'
   useEffect(() => {
     if (students.length === 0) return
-    setAttendance((prev) => {
-      const next = { ...prev }
-      for (const s of students) {
-        if (!next[s.id]) next[s.id] = 'undefined'
-      }
+    setAttendance(() => {
+      const next: Record<string, AttendanceStatus> = {}
+      for (const s of students) next[s.id] = 'undefined'
+      for (const r of existingRecords) next[r.student_id] = r.status
       return next
     })
-  }, [students])
+  }, [students, existingRecords])
 
   // ── Stats ─────────────────────────────────────────────────────────────────
 
@@ -393,16 +419,16 @@ export default function AttendanceManager() {
               <input
                 type="date"
                 value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className={glassSelect + ' pr-3.5 cursor-pointer'}
               />
             </StepSelect>
           </div>
 
-          {/* Context strip — shown once section is selected */}
+          {/* Context strip + Load button — shown once section is selected */}
           {sectionId && (
-            <div className="px-6 pb-4">
-              <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200/50">
+            <div className="px-6 pb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200/50">
                 <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 <p className="text-xs font-semibold text-indigo-700">
                   <span className="font-extrabold">{selectedSectionName}</span>
@@ -412,6 +438,23 @@ export default function AttendanceManager() {
                   {attendanceDate}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setLoadTriggered(true)}
+                disabled={loadTriggered && studentsLoading}
+                className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed active:scale-95"
+              >
+                {loadTriggered && studentsLoading ? (
+                  <><SpinIcon /> Loading…</>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Load Attendance
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>

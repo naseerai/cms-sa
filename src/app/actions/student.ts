@@ -39,8 +39,8 @@ export async function createStudent(data: CreateStudentPayload): Promise<CreateS
 
   // If credentials are provided, create an auth user
   if (data.username && data.password) {
-    const sanitized = data.username.trim().toLowerCase().replace(/\s+/g, '.')
-    generatedEmail = sanitized.includes('@') ? sanitized : `${sanitized}@students.nexus.edu`
+    // username is already the full email (e.g. ali.khan@nexuscollege.com)
+    generatedEmail = data.username.trim().toLowerCase()
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: generatedEmail,

@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
 import RegulationSetup from './_components/RegulationSetup'
 import GroupSetup from './_components/GroupSetup'
 import SectionSetup from './_components/SectionSetup'
@@ -8,7 +10,13 @@ export const metadata = {
     'Configure the curriculum hierarchy: create Regulations, assign Groups, and add Sections.',
 }
 
-export default function SetupPage() {
+export default async function SetupPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role === 'teacher') redirect('/admin')
+
   return (
     <div className="page-container">
       {/* ── Page Header ───────────────────────────────────────────────── */}

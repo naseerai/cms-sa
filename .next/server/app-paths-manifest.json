@@ -1,7 +1,7 @@
 {
-  "/login/page": "app/login/page.js",
-  "/(admin)/admin/attendance/page": "app/(admin)/admin/attendance/page.js",
-  "/(admin)/admin/page": "app/(admin)/admin/page.js",
+  "/page": "app/page.js",
   "/(admin)/admin/students/page": "app/(admin)/admin/students/page.js",
-  "/(admin)/admin/setup/page": "app/(admin)/admin/setup/page.js"
+  "/(admin)/admin/reports/attendance/page": "app/(admin)/admin/reports/attendance/page.js",
+  "/(admin)/admin/teachers/page": "app/(admin)/admin/teachers/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js"
 }

@@ -1,7 +1,15 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import StudentTable from './_components/StudentTable'
 
-export default function StudentsPage() {
+export default async function StudentsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role === 'teacher') redirect('/admin')
+
   return (
     <div className="p-6 lg:p-10 max-w-7xl mx-auto">
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
