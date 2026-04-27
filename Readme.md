@@ -9,3 +9,9 @@ Errors:
 Roll Number is locked
 
 Roll No 1 cannot be changed after enrollment. Contact a super-admin if a correction is needed.
+
+
+
+Failed to load teachers
+
+column profiles.email does not exist
