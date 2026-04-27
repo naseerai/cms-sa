@@ -15,3 +15,8 @@ Roll No 1 cannot be changed after enrollment. Contact a super-admin if a correct
 Failed to load teachers
 
 column profiles.email does not exist
+
+
+Profile not linked
+
+Your student profile has not been linked to this account yet. Please contact your administrator and ask them to set your user_id in the students table (your UID is 356f6922-ab29-4c6b-9be8-23cb5e8b0c81).
