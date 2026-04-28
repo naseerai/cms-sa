@@ -130,29 +130,67 @@ export async function createTeacher(payload: CreateTeacherPayload): Promise<Crea
   const fullName = payload.full_name.trim()
 
   // Create auth user
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role: 'teacher', full_name: fullName },
-  })
-  if (authError) {
-    if (authError.message.toLowerCase().includes('already registered')) {
-      throw new Error(`Email "${email}" is already registered.`)
+  // Create auth user OR link existing one
+let userId: string
+
+const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  email,
+  password,
+  email_confirm: true,
+  user_metadata: { role: 'teacher', full_name: fullName },
+})
+
+if (authError) {
+  const msg = authError.message.toLowerCase()
+
+  if (
+    msg.includes('already registered') ||
+    msg.includes('already been registered') ||
+    msg.includes('email address has already')
+  ) {
+    const { data: usersData, error: listError } =
+      await supabase.auth.admin.listUsers()
+
+    if (listError) {
+      throw new Error(`Failed to fetch existing users: ${listError.message}`)
     }
+
+    const existingUser = usersData.users.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    )
+
+    if (!existingUser) {
+      throw new Error(`Email "${email}" exists but user could not be found.`)
+    }
+
+    userId = existingUser.id
+  } else {
     throw new Error(`Auth error: ${authError.message}`)
   }
-  const userId = authData.user!.id
+} else {
+  userId = authData.user!.id
+}
 
   // Upsert profile with teacher role
-  const { error: profileError } = await supabase.from('profiles').upsert({
-    id: userId,
-    role: 'teacher',
-    full_name: fullName,
-  })
+  const { error: profileError } = await supabase
+  .from('profiles')
+  .upsert(
+    {
+      id: userId,
+      role: 'teacher',
+      full_name: fullName,
+      email: email,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: 'id',
+    }
+  )
   if (profileError) {
     // Rollback auth user
-    await supabase.auth.admin.deleteUser(userId)
+    if (authData?.user?.id) {
+  await supabase.auth.admin.deleteUser(userId)
+}
     throw new Error(`Profile error: ${profileError.message}`)
   }
 
@@ -162,7 +200,7 @@ export async function createTeacher(payload: CreateTeacherPayload): Promise<Crea
     id: userId,
     full_name: fullName,
     email,
-    created_at: authData.user!.created_at,
+    created_at: authData?.user?.created_at || new Date().toISOString(),
     password,
   }
 }

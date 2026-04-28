@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
+import { Download } from 'lucide-react'
 
 const glassSelect =
   'w-full text-sm px-3.5 py-2.5 border border-white/40 rounded-xl bg-white/50 backdrop-blur-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 outline-none transition appearance-none pr-9 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm'
@@ -31,15 +32,23 @@ interface Student {
   roll_no: string
 }
 
+type TableRow = Student & {
+  present: number
+  absent: number
+  holiday: number
+  total: number   // total classes (present + absent, excluding holiday)
+  pct: number | null
+}
+
 export default function AttendanceReport() {
   const supabase = createClient()
 
   const [regulationId, setRegulationId] = useState('')
-  const [groupId, setGroupId] = useState('')
-  const [sectionId, setSectionId] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [searched, setSearched] = useState(false)
+  const [groupId, setGroupId]           = useState('')
+  const [sectionId, setSectionId]       = useState('')
+  const [startDate, setStartDate]       = useState('')
+  const [endDate, setEndDate]           = useState('')
+  const [searched, setSearched]         = useState(false)
 
   // ── Cascade queries ──────────────────────────────────────────────────────
   const { data: regulations = [] } = useQuery({
@@ -93,21 +102,45 @@ export default function AttendanceReport() {
   }
 
   // ── Compute per-student stats ────────────────────────────────────────────
-  const tableRows = useMemo(() => {
+  const tableRows = useMemo<TableRow[]>(() => {
     if (!reportData) return []
     const { students, records } = reportData
     return students.map((s) => {
       const sRecords = records.filter((r) => r.student_id === s.id)
-      const present = sRecords.filter((r) => r.status === 'present').length
-      const absent = sRecords.filter((r) => r.status === 'absent').length
-      const holiday = sRecords.filter((r) => r.status === 'holiday').length
-      const working = present + absent
-      const pct = working > 0 ? Math.round((present / working) * 100) : null
-      return { ...s, present, absent, holiday, working, pct }
+      const present  = sRecords.filter((r) => r.status === 'present').length
+      const absent   = sRecords.filter((r) => r.status === 'absent').length
+      const holiday  = sRecords.filter((r) => r.status === 'holiday').length
+      // Total classes = working days (present + absent), holidays excluded
+      const total    = present + absent
+      // Guard against divide-by-zero
+      const pct      = total > 0 ? Math.round((present / total) * 100) : null
+      return { ...s, present, absent, holiday, total, pct }
     })
   }, [reportData])
 
   const sectionName = sections.find((s) => s.id === sectionId)?.name ?? ''
+
+  // ── CSV Download ─────────────────────────────────────────────────────────
+  function downloadCSV() {
+    if (!tableRows.length) return
+    const headers = ['Roll No', 'Student Name', 'Total Classes', 'Days Present', 'Days Absent', 'Attendance %']
+    const rows = tableRows.map((r) => [
+      r.roll_no,
+      r.full_name,
+      r.total,
+      r.present,
+      r.absent,
+      r.pct !== null ? `${r.pct}%` : '—',
+    ])
+    const csv = [headers, ...rows].map((row) => row.map(String).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `attendance-${sectionName}-${startDate}-to-${endDate}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="space-y-6">
@@ -160,12 +193,12 @@ export default function AttendanceReport() {
           </div>
           {/* Start Date */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-600">Start Date</label>
+            <label className="text-xs font-semibold text-slate-600">From Date</label>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={glassSelect + ' pr-3.5'} />
           </div>
           {/* End Date */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-600">End Date</label>
+            <label className="text-xs font-semibold text-slate-600">To Date</label>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={glassSelect + ' pr-3.5'} />
           </div>
           {/* Generate button */}
@@ -194,9 +227,18 @@ export default function AttendanceReport() {
         <div className="bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl shadow-xl shadow-slate-200/60 overflow-hidden">
           <div className="px-6 py-4 border-b border-white/60 bg-gradient-to-r from-indigo-500/10 to-transparent flex items-center justify-between">
             <div>
-              <h2 className="font-bold text-slate-800 text-sm">{sectionName} — Attendance Report</h2>
+              <h2 className="font-bold text-slate-800 text-sm">{sectionName} — Attendance Summary</h2>
               <p className="text-xs text-slate-400 mt-0.5">{startDate} to {endDate} · {tableRows.length} students</p>
             </div>
+            {/* Download CSV */}
+            <button
+              onClick={downloadCSV}
+              disabled={tableRows.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              Download CSV
+            </button>
           </div>
           {tableRows.length === 0 ? (
             <div className="text-center py-16 text-slate-400 text-sm">No students found for this section.</div>
@@ -208,16 +250,24 @@ export default function AttendanceReport() {
                     <th className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-12">#</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Roll No</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Student Name</th>
-                    <th className="text-center px-4 py-3 text-xs font-bold text-emerald-600 uppercase tracking-wider">Present</th>
-                    <th className="text-center px-4 py-3 text-xs font-bold text-red-500 uppercase tracking-wider">Absent</th>
-                    <th className="text-center px-4 py-3 text-xs font-bold text-orange-500 uppercase tracking-wider">Holiday</th>
-                    <th className="text-center px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Working Days</th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Total Classes</th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-emerald-600 uppercase tracking-wider">Days Present</th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-red-500 uppercase tracking-wider">Days Absent</th>
                     <th className="text-center px-5 py-3 text-xs font-bold text-indigo-600 uppercase tracking-wider">Attendance %</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/50">
                   {tableRows.map((row, idx) => {
-                    const pctColor = row.pct === null ? 'text-slate-400' : row.pct >= 75 ? 'text-emerald-600' : row.pct >= 60 ? 'text-amber-600' : 'text-red-600'
+                    const pctColor =
+                      row.pct === null ? 'text-slate-400'
+                      : row.pct >= 75  ? 'text-emerald-600'
+                      : row.pct >= 60  ? 'text-amber-600'
+                      : 'text-red-600'
+                    const pctBg =
+                      row.pct === null ? ''
+                      : row.pct >= 75  ? 'bg-emerald-50'
+                      : row.pct >= 60  ? 'bg-amber-50'
+                      : 'bg-red-50'
                     return (
                       <tr key={row.id} className="hover:bg-white/60 transition-colors">
                         <td className="px-5 py-3.5 text-xs text-slate-300 font-mono">{String(idx + 1).padStart(2, '0')}</td>
@@ -225,15 +275,14 @@ export default function AttendanceReport() {
                           <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100/80 px-2 py-0.5 rounded-md">{row.roll_no}</span>
                         </td>
                         <td className="px-4 py-3.5 font-semibold text-slate-800">{row.full_name}</td>
+                        <td className="px-4 py-3.5 text-center font-bold text-slate-600">{row.total}</td>
                         <td className="px-4 py-3.5 text-center font-bold text-emerald-600">{row.present}</td>
                         <td className="px-4 py-3.5 text-center font-bold text-red-500">{row.absent}</td>
-                        <td className="px-4 py-3.5 text-center font-bold text-orange-500">{row.holiday}</td>
-                        <td className="px-4 py-3.5 text-center text-slate-600 font-semibold">{row.working}</td>
                         <td className="px-5 py-3.5 text-center">
                           {row.pct === null ? (
                             <span className="text-slate-400 text-xs">—</span>
                           ) : (
-                            <span className={`inline-flex items-center gap-1 text-sm font-extrabold ${pctColor}`}>
+                            <span className={`inline-flex items-center justify-center min-w-[3.5rem] text-sm font-extrabold px-2 py-0.5 rounded-lg ${pctColor} ${pctBg}`}>
                               {row.pct}%
                             </span>
                           )}

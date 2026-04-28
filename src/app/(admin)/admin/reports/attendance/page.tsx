@@ -1,7 +1,9 @@
+import Link from 'next/link'
 import AttendanceReport from './_components/AttendanceReport'
+import { ArrowLeft } from 'lucide-react'
 
 export const metadata = {
-  title: 'Attendance Report — NexusCollege',
+  title: 'Attendance Reports — NexusCollege',
   description: 'View attendance summaries by section and date range.',
 }
 
@@ -19,10 +21,21 @@ export default function AttendanceReportPage() {
               </div>
               <span className="text-xs font-bold text-violet-600 uppercase tracking-wider">Reports</span>
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Attendance Report</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Attendance Reports</h1>
             <p className="mt-1.5 text-slate-500 text-sm max-w-2xl">
-              Filter by <strong className="text-slate-700">Regulation → Group → Section</strong> and a date range to see each student's attendance summary.
+              Filter by <strong className="text-slate-700">Regulation → Group → Section</strong> and a date range to see each student&apos;s attendance summary.
             </p>
+          </div>
+
+          {/* Back to Marking button */}
+          <div className="shrink-0">
+            <Link
+              href="/admin/attendance"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/70 hover:bg-white border border-white/60 hover:border-slate-200 text-slate-700 hover:text-slate-900 text-sm font-bold shadow-sm transition-all duration-200 hover:shadow-md"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Marking
+            </Link>
           </div>
         </div>
         <AttendanceReport />

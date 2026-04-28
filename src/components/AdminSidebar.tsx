@@ -55,7 +55,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: 'Attendance',
+    label: 'Daily Attendance',
     href: '/admin/attendance',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +64,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: 'Attendance Report',
+    label: 'Attendance Reports',
     href: '/admin/reports/attendance',
     adminOnly: true,
     icon: (
