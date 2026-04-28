@@ -1,22 +1,95 @@
-Errors:
+NexusCollege
 
-- In attendance if we select to day date it was showing but whern chnagedate it not showing for this best is to add load attenadce buttion
-- in attenadance there no attenace report where we can class wise with custom date ranges
-- in student login no data i showing 
-- add nottices featrures when nbotice is adedd it needdd to show to student in student login
-- give option add tecahers ( manage attenadce,add notices)
+Student Portal
 
-Roll Number is locked
+Menu
 
-Roll No 1 cannot be changed after enrollment. Contact a super-admin if a correction is needed.
+My Dashboard
+Notices
+SA
+sai@nexuscollege.com
 
+Student
 
+Sign Out
+S
+Student Portal
 
-Failed to load teachers
+Welcome back, sai!
+098
+•
+2022-2027 › ECE › —
+Sign Out
+Attendance Health
+50%
+Attendance
+⚠ Below Requirement
+2
 
-column profiles.email does not exist
+Total Classes
 
+1
 
-Profile not linked
+Present
 
-Your student profile has not been linked to this account yet. Please contact your administrator and ask them to set your user_id in the students table (your UID is 356f6922-ab29-4c6b-9be8-23cb5e8b0c81).
+1
+
+Absent
+
+0
+
+Holiday
+
+Academic Placement
+Regulation
+
+2022-2027
+
+Group / Batch
+
+ECE
+
+Section
+
+—
+
+Attendance History
+Last 2 records
+01
+27 Apr 2026
+present
+02
+26 Apr 2026
+absent
+My Profile
+Full Name
+
+sai
+
+Roll No
+
+098
+
+Phone
+
+0987654
+
+Parent
+
+saifa
+
+Parent Mobile
+
+5465768798
+
+Notice Board
+dsdsd
+
+27 Apr 2026
+
+More
+May day holiday
+
+27 Apr 2026
+
+More
