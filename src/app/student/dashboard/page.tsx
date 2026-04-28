@@ -200,7 +200,7 @@ const section    = (student.section as any)?.name ?? '—'
   ]
 
   const statPills = [
-    { label: 'Total Classes', value: total,   icon: <CalendarDays  className="w-4 h-4" />, cls: 'bg-slate-100 text-slate-700'   },
+    { label: 'Total Working days', value: total,   icon: <CalendarDays  className="w-4 h-4" />, cls: 'bg-slate-100 text-slate-700'   },
     { label: 'Present',       value: present, icon: <CalendarCheck className="w-4 h-4" />, cls: 'bg-emerald-100 text-emerald-700' },
     { label: 'Absent',        value: absent,  icon: <CalendarX     className="w-4 h-4" />, cls: 'bg-red-100 text-red-600'        },
     { label: 'Holiday',       value: holiday, icon: <CheckCircle2  className="w-4 h-4" />, cls: 'bg-amber-100 text-amber-700'    },

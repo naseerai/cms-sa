@@ -8,13 +8,23 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+const { data: profile, error } = await supabase
+  .from('profiles')
+  .select('role')
+  .eq('id', user.id)
+  .maybeSingle()
 
-  if (profile?.role !== 'student') redirect('/admin')
+console.log("USER ID:", user.id)
+console.log("PROFILE:", profile)
+console.log("PROFILE ERROR:", error)
+
+if (error || !profile) {
+  redirect('/login')
+}
+
+if (profile?.role && profile.role !== 'student') {
+  redirect('/admin')
+}
 
   return (
     <div className="portal-shell">
