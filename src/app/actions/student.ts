@@ -53,10 +53,12 @@ export async function createStudent(data: CreateStudentPayload): Promise<CreateS
   const admin = getAdminClient()
 
   // ── A. Resolve credentials ────────────────────────────────────────────────
-  const domain       = process.env.STUDENT_EMAIL_DOMAIN || 'nexuscollege.com'
+  // Students always log in with roll_no@nexus.local — never expose real emails
+  const domain       = process.env.STUDENT_EMAIL_DOMAIN || 'nexus.local'
   const slug         = data.roll_no.trim().toLowerCase()
-                         .replace(/\s+/g, '.')
-                         .replace(/[^a-z0-9._-]/g, '')
+                         .replace(/\s+/g, '-')
+                         .replace(/[^a-z0-9._-]/g, '-')
+  // Allow caller to pass a full email (admin override), otherwise build from roll_no
   const finalEmail    = data.username?.trim().toLowerCase() || `${slug}@${domain}`
   const finalPassword = data.password?.trim() || generatePassword()
 
@@ -72,7 +74,7 @@ export async function createStudent(data: CreateStudentPayload): Promise<CreateS
   if (authError) {
     console.error('[createStudent] Auth error:', authError)
     if (authError.message.toLowerCase().includes('already registered')) {
-      throw new Error(`Email "${finalEmail}" is already registered. Choose a different email prefix.`)
+      throw new Error(`Roll Number "${data.roll_no}" is already assigned to an existing account. Use a different Roll Number.`)
     }
     throw new Error(`Auth error: ${authError.message}`)
   }

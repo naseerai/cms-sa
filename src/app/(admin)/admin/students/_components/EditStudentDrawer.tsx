@@ -7,7 +7,7 @@ import { updateStudentAccount } from '@/app/actions/teacher'
 import { useToast } from '@/hooks/useToast'
 import Toaster from '@/components/ui/Toaster'
 
-const EMAIL_DOMAIN = '@nexuscollege.com'
+const STUDENT_DOMAIN = '@nexus.local'
 
 export interface StudentRow {
   id: string
@@ -165,13 +165,18 @@ export default function EditStudentDrawer({ student, onClose }: EditStudentDrawe
       return
     }
     if (!emailPrefix.trim() && !newPassword.trim()) {
-      toast({ title: 'Nothing to update', description: 'Enter a new email prefix or password.', variant: 'error' })
+      toast({ title: 'Nothing to update', description: 'Enter a new Roll Number or password.', variant: 'error' })
       return
     }
     setAccountSaving(true)
     try {
       const updates: { email?: string; password?: string } = {}
-      if (emailPrefix.trim()) updates.email = `${emailPrefix.trim().toLowerCase()}${EMAIL_DOMAIN}`
+      if (emailPrefix.trim()) {
+        const slug = emailPrefix.trim().toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9._-]/g, '-')
+        updates.email = `${slug}${STUDENT_DOMAIN}`
+      }
       if (newPassword.trim()) updates.password = newPassword.trim()
       await updateStudentAccount(student.user_id, updates)
       toast({ title: 'Account updated!', description: 'Credentials have been saved.', variant: 'success' })
@@ -303,20 +308,21 @@ export default function EditStudentDrawer({ student, onClose }: EditStudentDrawe
             ) : (
               <>
                 <div>
-                  <Label>New Email Prefix</Label>
+                  <Label>New Roll Number (Username)</Label>
                   <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition">
                     <input
                       id="edit-email-prefix"
                       value={emailPrefix}
                       onChange={(e) => setEmailPrefix(e.target.value)}
-                      placeholder="Leave blank to keep current"
+                      placeholder={student.roll_no || 'e.g. CS-2024-001'}
                       autoComplete="off"
                       className="flex-1 text-sm px-3.5 py-2.5 bg-white text-slate-800 placeholder:text-slate-400 outline-none min-w-0"
                     />
                     <span className="flex items-center px-3 bg-slate-100 text-slate-500 text-sm font-mono border-l border-slate-200 whitespace-nowrap select-none">
-                      {EMAIL_DOMAIN}
+                      {STUDENT_DOMAIN}
                     </span>
                   </div>
+                  <p className="text-xs text-slate-400 mt-1">Students log in with their Roll Number. Leave blank to keep current.</p>
                 </div>
                 <div>
                   <Label>New Password</Label>

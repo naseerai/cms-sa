@@ -4,10 +4,19 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
+// If the user types a roll number (no @), append the nexus.local domain
+function resolveLoginEmail(input: string): string {
+  const trimmed = input.trim().toLowerCase()
+  if (trimmed.includes('@')) return trimmed
+  // Convert roll number: spaces/slashes to dots, strip illegal chars
+  const slug = trimmed.replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '-')
+  return `${slug}@nexus.local`
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('') // roll number or email
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -16,11 +25,27 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (!identifier.trim()) {
+      setError('Please enter your Roll Number or Username.')
+      return
+    }
+    if (!password.trim()) {
+      setError('Please enter your password.')
+      return
+    }
+
     setLoading(true)
+    const email = resolveLoginEmail(identifier)
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-      if (authError) throw authError
+      if (authError) {
+        if (authError.message.toLowerCase().includes('invalid login')) {
+          throw new Error('Incorrect Roll Number / Username or password. Please try again.')
+        }
+        throw authError
+      }
 
       const userId = data.user?.id
       if (!userId) throw new Error('Login failed. Please try again.')
@@ -37,7 +62,7 @@ export default function LoginPage() {
         router.push('/admin')
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password.')
+      setError(err.message || 'An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -78,16 +103,20 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
-                Email Address
+                Roll Number / Username
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="e.g. CS-2024-001 or admin@nexus.edu"
+                autoComplete="username"
                 required
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-600 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
+              <p className="mt-1.5 text-[11px] text-slate-600">
+                Students: enter your Roll Number. Admins: enter your email.
+              </p>
             </div>
 
             <div>

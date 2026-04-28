@@ -189,11 +189,14 @@ export default function AttendanceManager() {
     setLoadTriggered(false)
   }
 
+  // Date change: keep loadTriggered if a section is already selected
+  // so the component auto-re-fetches existing records for the new date
   function handleDateChange(val: string) {
     setAttendanceDate(val)
     setAttendance({})
     setIsDirty(false)
-    setLoadTriggered(false)
+    // Do NOT reset loadTriggered here — the queries will re-run automatically
+    // because the queryKey changes (it includes attendanceDate)
   }
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
@@ -251,7 +254,7 @@ export default function AttendanceManager() {
   })
 
   // fetch existing attendance records for sectionId + date
-  const { data: existingRecords = [] } = useQuery({
+  const { data: existingRecords = [], isFetching: existingRecordsFetching } = useQuery({
     queryKey: ['attendance-existing', sectionId, attendanceDate],
     enabled: !!sectionId && loadTriggered,
     queryFn: async () => {
@@ -263,18 +266,22 @@ export default function AttendanceManager() {
       if (error) throw error
       return data as { student_id: string; status: AttendanceStatus }[]
     },
+    // Always re-fetch when the query key changes (date switch)
+    staleTime: 0,
   })
 
   // seed attendance map: existing DB records take priority, rest default to 'undefined'
+  // Only run AFTER both students AND existing records have finished loading
   useEffect(() => {
     if (students.length === 0) return
+    if (existingRecordsFetching) return // wait until records are loaded from DB
     setAttendance(() => {
       const next: Record<string, AttendanceStatus> = {}
       for (const s of students) next[s.id] = 'undefined'
       for (const r of existingRecords) next[r.student_id] = r.status
       return next
     })
-  }, [students, existingRecords])
+  }, [students, existingRecords, existingRecordsFetching])
 
   // ── Stats ─────────────────────────────────────────────────────────────────
 
@@ -518,6 +525,13 @@ export default function AttendanceManager() {
             )}
 
             {/* Body: loading / empty / table */}
+            {/* Records-fetching banner — shown when students loaded but existing records are still being fetched */}
+            {!studentsLoading && students.length > 0 && existingRecordsFetching && (
+              <div className="flex items-center gap-2.5 px-5 py-2.5 bg-indigo-50/80 border-b border-indigo-100/80 text-xs text-indigo-600 font-semibold">
+                <SpinIcon size="h-3.5 w-3.5" />
+                Fetching saved attendance records from the database…
+              </div>
+            )}
             {studentsLoading ? (
               <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
                 <SpinIcon size="h-5 w-5" /> <span className="text-sm">Loading students…</span>
