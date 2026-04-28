@@ -79,11 +79,11 @@ const [studentRes, noticesRes] = await Promise.all([
   supabase
     .from('students')
     .select(`
-  *,
-  regulations:regulations!students_year_id_fkey(name),
-  groups:groups!students_group_id_fkey(name),
-  sections:sections!students_section_id_fkey(name)
-`)
+      *,
+      regulation:regulations!students_year_id_fkey(name),
+      group:groups!students_group_id_fkey(name),
+      section:sections!students_section_id_fkey(id,name)
+    `)
     .eq('user_id', user.id)
     .maybeSingle(),
 
@@ -95,7 +95,9 @@ const [studentRes, noticesRes] = await Promise.all([
 ])
 
   const student = studentRes.data
-  console.log('Student Full Data:', JSON.stringify(student, null, 2))
+  console.log("SECTION ID:", student.section_id)
+console.log("SECTION DATA:", student.section)
+console.log("FULL:", JSON.stringify(student, null, 2))
   const notices = (noticesRes.data ?? []) as Notice[]
 
   // ── Defensive: Account Setup screen ───────────────────────────────────────
@@ -184,9 +186,9 @@ const [studentRes, noticesRes] = await Promise.all([
   const recent  = att.slice(0, 10)
 
   // ── Derived: handle both nested objects and flat fallbacks ────────────────
-  const regulation = (student.regulations as any)?.name ?? '—'
-  const group      = (student.groups     as any)?.name ?? '—'
-  const section    = (student.sections   as any)?.name ?? '—'
+  const regulation = (student.regulation as any)?.name ?? '—'
+const group      = (student.group as any)?.name ?? '—'
+const section    = (student.section as any)?.name ?? '—'
   const rawName    = student.full_name ?? ''
   const initials   = rawName.split(' ').filter(Boolean).slice(0, 2)
     .map((w: string) => w[0]?.toUpperCase() ?? '').join('')
