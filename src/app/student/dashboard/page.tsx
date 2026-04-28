@@ -79,11 +79,11 @@ const [studentRes, noticesRes] = await Promise.all([
   supabase
     .from('students')
     .select(`
-      *,
-      regulations:regulation_id(name),
-      groups:group_id(name),
-      sections:section_id(name)
-    `)
+  *,
+  regulations:regulations!students_year_id_fkey(name),
+  groups:groups!students_group_id_fkey(name),
+  sections:sections!students_section_id_fkey(name)
+`)
     .eq('user_id', user.id)
     .maybeSingle(),
 

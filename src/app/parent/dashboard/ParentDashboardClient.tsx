@@ -52,11 +52,11 @@ export default function ParentDashboardClient({ initialNotices }: { initialNotic
       const { data: students, error: sErr } = await supabase
         .from('students')
         .select(`
-          id, full_name, roll_no,
-          regulations:regulation_id(name),
-          groups:group_id(name),
-          sections:section_id(name)
-        `)
+  *,
+  regulations:regulations!students_year_id_fkey(name),
+  groups:groups!students_group_id_fkey(name),
+  sections:sections!students_section_id_fkey(name)
+`)
         .eq('parent_mobile', mobile.trim())
         .limit(1)
 
@@ -67,21 +67,43 @@ export default function ParentDashboardClient({ initialNotices }: { initialNotic
 
       const s = students[0]
       const foundStudent: Student = {
-        id: s.id,
-        full_name: s.full_name,
-        roll_no: s.roll_no,
-        regulation_name: (s.regulations as any)?.name ?? '—',
-        group_name: (s.groups as any)?.name ?? '—',
-        section_name: (s.sections as any)?.name ?? '—',
-      }
+  id: s.id,
+  full_name: s.full_name,
+  roll_no: s.roll_no,
+  regulation_name: (s.regulations as any)?.[0]?.name ?? '—',
+  group_name: (s.groups as any)?.[0]?.name ?? '—',
+  section_name: (s.sections as any)?.[0]?.name ?? '—',
+}
       setStudent(foundStudent)
 
       // Fetch attendance summary
-      const { data: records } = await supabase
-        .from('attendance')
-        .select('status')
-        .eq('student_id', s.id)
+      if (aErr) {
+  setError('Failed to fetch attendance data.')
+  return
+}
 
+if (records && records.length > 0) {
+  const present = records.filter((r) => r.status === 'present').length
+  const absent = records.filter((r) => r.status === 'absent').length
+  const holiday = records.filter((r) => r.status === 'holiday').length
+  const working = present + absent
+
+  setAttendance({
+    present,
+    absent,
+    holiday,
+    total: working,
+    pct: working > 0 ? Math.round((present / working) * 100) : null
+  })
+} else {
+  setAttendance({
+    present: 0,
+    absent: 0,
+    holiday: 0,
+    total: 0,
+    pct: null
+  })
+}
       if (records) {
         const present = records.filter((r) => r.status === 'present').length
         const absent = records.filter((r) => r.status === 'absent').length
