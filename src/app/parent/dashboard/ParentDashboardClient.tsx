@@ -48,17 +48,19 @@ export default function ParentDashboardClient({ initialNotices }: { initialNotic
     setStudent(null)
     setAttendance(null)
     startTransition(async () => {
-      // Find student by parent_mobile
-      const { data: students, error: sErr } = await supabase
-        .from('students')
-        .select(`
-  *,
-  regulations:regulations!students_year_id_fkey(name),
-  groups:groups!students_group_id_fkey(name),
-  sections:sections!students_section_id_fkey(name)
-`)
-        .eq('parent_mobile', mobile.trim())
-        .limit(1)
+// Find student by parent_mobile
+const { data: students, error: sErr } = await supabase
+  .from('students')
+  .select(`
+    id,
+    full_name,
+    roll_no,
+    regulations:regulations!students_year_id_fkey(name),
+    groups:groups!students_group_id_fkey(name),
+    sections:sections!students_section_id_fkey(name)
+  `)
+  .eq('parent_mobile', mobile.trim())
+  .limit(1)
 
       if (sErr || !students || students.length === 0) {
         setError('No student found with this parent mobile number.')
@@ -76,8 +78,13 @@ export default function ParentDashboardClient({ initialNotices }: { initialNotic
 }
       setStudent(foundStudent)
 
-      // Fetch attendance summary
-      if (aErr) {
+// Fetch attendance summary
+const { data: records, error: aErr } = await supabase
+  .from('attendance')
+  .select('status')
+  .eq('student_id', s.id)
+
+if (aErr) {
   setError('Failed to fetch attendance data.')
   return
 }
@@ -93,7 +100,7 @@ if (records && records.length > 0) {
     absent,
     holiday,
     total: working,
-    pct: working > 0 ? Math.round((present / working) * 100) : null
+    pct: working > 0 ? Math.round((present / working) * 100) : null,
   })
 } else {
   setAttendance({
@@ -101,7 +108,7 @@ if (records && records.length > 0) {
     absent: 0,
     holiday: 0,
     total: 0,
-    pct: null
+    pct: null,
   })
 }
       if (records) {
