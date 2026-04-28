@@ -183,3 +183,71 @@ export async function getUserRole(): Promise<'admin' | 'student' | null> {
   const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   return (data?.role as 'admin' | 'student') ?? null
 }
+
+// ─── lookupAcademicIds ────────────────────────────────────────────────────────
+// Returns name→id maps for regulations, groups, and sections.
+// Used by the bulk upload modal to resolve CSV name columns to UUIDs.
+
+export interface AcademicMaps {
+  regulations: Record<string, string>  // name → id
+  groups: Record<string, string>       // name → id
+  sections: Record<string, string>     // name → id
+}
+
+export async function lookupAcademicIds(): Promise<AcademicMaps> {
+  const admin = getAdminClient()
+  const [{ data: regs }, { data: grps }, { data: secs }] = await Promise.all([
+    admin.from('regulations').select('id, name'),
+    admin.from('groups').select('id, name'),
+    admin.from('sections').select('id, name'),
+  ])
+  return {
+    regulations: Object.fromEntries((regs ?? []).map(r => [r.name.trim().toLowerCase(), r.id])),
+    groups:      Object.fromEntries((grps ?? []).map(g => [g.name.trim().toLowerCase(), g.id])),
+    sections:    Object.fromEntries((secs ?? []).map(s => [s.name.trim().toLowerCase(), s.id])),
+  }
+}
+
+// ─── bulkCreateStudent ────────────────────────────────────────────────────────
+// Creates a single student (auth + DB row) from a CSV row.
+// Called in a loop by the BulkUploadModal; each row is independent.
+
+export interface BulkStudentRow {
+  full_name: string
+  roll_no: string
+  password: string
+  phone?: string
+  parent_name: string
+  parent_mobile: string
+  regulation_id: string  // UUID, pre-resolved from name by caller
+  group_id: string
+  section_id: string
+}
+
+export interface BulkCreateResult {
+  roll_no: string
+  success: boolean
+  email?: string
+  password?: string
+  error?: string
+}
+
+export async function bulkCreateStudent(row: BulkStudentRow): Promise<BulkCreateResult> {
+  try {
+    const result = await createStudent({
+      full_name:     row.full_name.trim(),
+      roll_no:       row.roll_no.trim(),
+      phone:         row.phone?.trim() || undefined,
+      regulation_id: row.regulation_id,
+      group_id:      row.group_id,
+      section_id:    row.section_id,
+      parent_name:   row.parent_name.trim(),
+      parent_mobile: row.parent_mobile.trim(),
+      // No explicit username — roll_no@nexus.local is used automatically
+      password:      row.password?.trim() || undefined,
+    })
+    return { roll_no: row.roll_no, success: true, email: result.email, password: result.password }
+  } catch (err: any) {
+    return { roll_no: row.roll_no, success: false, error: err.message }
+  }
+}

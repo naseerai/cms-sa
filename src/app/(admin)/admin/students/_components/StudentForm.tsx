@@ -12,7 +12,8 @@ import Toaster from '@/components/ui/Toaster'
 
 // ─── Schema (aligned with DB schema) ─────────────────────────────────────────
 
-const EMAIL_DOMAIN = '@nexuscollege.com'
+// Roll number is used as the auth login automatically (roll_no@nexus.local)
+// Students do NOT need to know their email address
 
 const schema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
@@ -26,8 +27,7 @@ const schema = z.object({
   parent_name: z.string().min(2, 'Parent name is required'),
   parent_mobile: z.string().min(7, 'Valid parent mobile is required'),
 
-  // Optional login credentials — username is just the prefix (before @)
-  username: z.string().optional(),
+  // Only password needed — roll_no is used as the username automatically
   password: z.string().optional(),
 })
 
@@ -128,7 +128,7 @@ function SuccessModal({
             </p>
           </div>
 
-          {email && password && (
+          {rollNo && password && (
             <>
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2 items-start">
                 <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,10 +136,11 @@ function SuccessModal({
                 </svg>
                 <p className="text-xs text-amber-700 font-medium">
                   Save these credentials. They will <strong>not be shown again</strong>.
+                  Student logs in with their <strong>Roll Number</strong> — no email needed.
                 </p>
               </div>
               {[
-                { label: 'Login Email', value: email, field: 'email' },
+                { label: 'Roll Number (Login)', value: rollNo, field: 'roll_no' },
                 { label: 'Password', value: password, field: 'password' },
               ].map(({ label, value, field }) => (
                 <div key={field}>
@@ -217,7 +218,7 @@ export default function StudentForm() {
       full_name: '', roll_no: '', phone: '',
       regulation_id: '', group_id: '', section_id: '',
       parent_name: '', parent_mobile: '',
-      username: '', password: '',
+      password: '',
     },
   })
 
@@ -288,11 +289,8 @@ export default function StudentForm() {
   async function onSubmit(data: FormValues) {
     setSubmitting(true)
     try {
-      // Combine prefix with fixed domain to form the full email
-      const fullUsername = data.username
-        ? `${data.username.trim().toLowerCase()}${EMAIL_DOMAIN}`
-        : undefined
-
+      // Roll number is always used as the login (roll_no@nexus.local)
+      // No custom username needed
       const result = await createStudent({
         full_name: data.full_name,
         roll_no: data.roll_no,
@@ -302,7 +300,7 @@ export default function StudentForm() {
         section_id: data.section_id,
         parent_name: data.parent_name,
         parent_mobile: data.parent_mobile,
-        username: fullUsername,
+        // No explicit username — roll_no@nexus.local is built server-side
         password: data.password || undefined,
       })
 
@@ -505,7 +503,7 @@ export default function StudentForm() {
             </div>
           </div>
 
-          {/* ── Section 4: Optional Login Credentials ────────────── */}
+          {/* ── Section 4: Portal Login Credentials ────────────── */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <button
               type="button"
@@ -518,7 +516,7 @@ export default function StudentForm() {
                 </div>
                 <div className="text-left">
                   <h3 className="text-sm font-bold text-slate-800">Portal Login Credentials</h3>
-                  <p className="text-xs text-slate-400">Optional — set up student login access now or later</p>
+                  <p className="text-xs text-slate-400">Roll Number is used as login automatically. Set a custom password or leave blank to auto-generate.</p>
                 </div>
               </div>
               <svg
@@ -531,50 +529,41 @@ export default function StudentForm() {
 
             {showCredentials && (
               <div className="px-6 pb-6 border-t border-slate-100 pt-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div>
-                    <Label>Email Prefix</Label>
-                    {/* Split input: user types prefix, domain is fixed */}
-                    <div className="flex items-stretch rounded-lg border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition">
-                      <input
-                        {...register('username')}
-                        id="student-email-prefix"
-                        placeholder="e.g. ali.khan"
-                        autoComplete="off"
-                        className="flex-1 text-sm px-3.5 py-2.5 bg-white text-slate-800 placeholder:text-slate-400 outline-none min-w-0"
-                      />
-                      <span className="flex items-center px-3 bg-slate-100 text-slate-500 text-sm font-mono border-l border-slate-200 whitespace-nowrap select-none">
-                        {EMAIL_DOMAIN}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">Letters, numbers, dots and underscores only. The domain is fixed.</p>
-                  </div>
-                  <div>
-                    <Label>Password</Label>
-                    <div className="relative">
-                      <input
-                        {...register('password')}
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Minimum 8 characters"
-                        className={inputCls + ' pr-10'}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                      >
-                        {showPassword ? (
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
+                {/* Login info banner */}
+                <div className="flex items-start gap-2 mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                  <svg className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs text-indigo-700">
+                    <strong>Login:</strong> Student uses their <strong>Roll Number</strong> to log in — no email required.
+                    A unique internal account is created automatically.
+                  </p>
+                </div>
+                <div className="max-w-xs">
+                  <Label>Password</Label>
+                  <div className="relative">
+                    <input
+                      {...register('password')}
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Leave blank to auto-generate a secure password"
+                      className={inputCls + ' pr-10'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>

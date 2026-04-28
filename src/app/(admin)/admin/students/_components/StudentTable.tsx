@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
 import EditStudentDrawer, { type StudentRow } from './EditStudentDrawer'
+import BulkUploadModal from './BulkUploadModal'
 
 const glassSelect =
   'w-full text-sm px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition appearance-none pr-8 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm'
@@ -21,6 +22,7 @@ function getInitials(fullName: string) {
 export default function StudentTable() {
   const supabase = createClient()
   const [editingStudent, setEditingStudent] = useState<StudentRow | null>(null)
+  const [showBulk, setShowBulk] = useState(false)
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [filterRegId, setFilterRegId] = useState('')
@@ -118,6 +120,7 @@ export default function StudentTable() {
   return (
     <>
       <EditStudentDrawer student={editingStudent} onClose={() => setEditingStudent(null)} />
+      {showBulk && <BulkUploadModal onClose={() => setShowBulk(false)} />}
 
       {/* ── Filter Bar ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-4">
@@ -160,7 +163,19 @@ export default function StudentTable() {
               Clear Filters
             </button>
           )}
-          <p className="ml-auto text-xs text-slate-400 self-end pb-2.5">{students.length} student{students.length !== 1 ? 's' : ''}</p>
+
+          {/* Bulk Upload button */}
+          <button
+            onClick={() => setShowBulk(true)}
+            className="ml-auto flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3.5 py-2.5 border border-indigo-200 rounded-lg transition"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Bulk Upload CSV
+          </button>
+
+          <p className="text-xs text-slate-400 self-end pb-2.5">{students.length} student{students.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
