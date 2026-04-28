@@ -75,20 +75,27 @@ export default async function StudentDashboard() {
 
   // ── Parallel data fetch ────────────────────────────────────────────────────
   // Use wildcard + named joins so nested relation names resolve correctly
-  const [studentRes, noticesRes] = await Promise.all([
-    supabase
-      .from('students')
-      .select('*, regulations(name), groups(name), sections(name)')
-      .eq('user_id', user.id)
-      .single(),
-    supabase
-      .from('notices')
-      .select('id, title, content, created_at')
-      .order('created_at', { ascending: false })  // newest first
-      .limit(5),
-  ])
+const [studentRes, noticesRes] = await Promise.all([
+  supabase
+    .from('students')
+    .select(`
+      *,
+      regulations:regulation_id(name),
+      groups:group_id(name),
+      sections:section_id(name)
+    `)
+    .eq('user_id', user.id)
+    .maybeSingle(),
+
+  supabase
+    .from('notices')
+    .select('id, title, content, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5),
+])
 
   const student = studentRes.data
+  console.log('Student Full Data:', JSON.stringify(student, null, 2))
   const notices = (noticesRes.data ?? []) as Notice[]
 
   // ── Defensive: Account Setup screen ───────────────────────────────────────
