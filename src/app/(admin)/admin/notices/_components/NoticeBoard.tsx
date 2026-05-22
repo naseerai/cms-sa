@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
 import { useToast } from '@/hooks/useToast'
 import Toaster from '@/components/ui/Toaster'
+import { notifyNoticeWhatsApp } from '@/app/actions/whatsapp'
 
 interface Notice {
   id: string
@@ -48,6 +49,30 @@ export default function NoticeBoard() {
     },
     onSuccess: () => {
       toast({ title: 'Notice posted!', description: 'Students will see it on their dashboard.', variant: 'success' })
+
+      // ── WhatsApp blast (background — never blocks the UI) ────────────────
+      const titleSnapshot = title.trim()
+      const contentSnapshot = content.trim()
+      const dateStr = new Date().toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+      // Keep template variable 3 under 100 chars to stay within WhatsApp limits
+      const shortContent = contentSnapshot.length > 100
+        ? contentSnapshot.slice(0, 97) + '…'
+        : contentSnapshot
+
+      notifyNoticeWhatsApp(titleSnapshot, dateStr, shortContent)
+        .then(({ sent, failed, skipped }) => {
+          console.log(
+            `[WhatsApp] Notice broadcast — sent:${sent} failed:${failed} skipped:${skipped}`
+          )
+        })
+        .catch((err) => {
+          console.error('[WhatsApp] Notice broadcast error (non-fatal):', err)
+        })
+
       setTitle('')
       setContent('')
       qc.invalidateQueries({ queryKey: ['notices'] })

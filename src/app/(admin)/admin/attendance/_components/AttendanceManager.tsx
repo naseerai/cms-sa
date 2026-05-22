@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
 import { useToast } from '@/hooks/useToast'
 import Toaster from '@/components/ui/Toaster'
+import { notifyAttendanceWhatsApp } from '@/app/actions/whatsapp'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ interface Student {
   id: string
   full_name: string
   roll_no: string
+  parent_mobile: string
 }
 
 // ─── Status Config ────────────────────────────────────────────────────────────
@@ -245,7 +247,7 @@ export default function AttendanceManager() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('students')
-        .select('id, full_name, roll_no')
+        .select('id, full_name, roll_no, parent_mobile')
         .eq('section_id', sectionId)
         .order('roll_no')
       if (error) throw error
@@ -327,6 +329,23 @@ export default function AttendanceManager() {
       })
       setIsDirty(false)
       qc.invalidateQueries({ queryKey: ['attendance'] })
+
+      // ── WhatsApp notifications (background — never blocks the UI) ──────────
+      // Build a snapshot of current attendance so the async call has stable data
+      const attendanceSnapshot = { ...attendance }
+      const dateSnapshot = attendanceDate
+      const sectionSnapshot = sectionId
+
+      // Fire-and-forget via Promise.allSettled wrapper inside the server action
+      notifyAttendanceWhatsApp(sectionSnapshot, attendanceSnapshot, dateSnapshot)
+        .then(({ sent, failed, skipped }) => {
+          console.log(
+            `[WhatsApp] Attendance notifications — sent:${sent} failed:${failed} skipped:${skipped}`
+          )
+        })
+        .catch((err) => {
+          console.error('[WhatsApp] Attendance notification error (non-fatal):', err)
+        })
     },
     onError: (err: any) => {
       toast({ title: 'Failed to save', description: err.message, variant: 'error' })
